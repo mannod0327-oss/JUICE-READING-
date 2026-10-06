@@ -40,13 +40,13 @@ npm run all                                   # build → audit → standalone s
 
 ## Platformaga yuklash (Supabase `oiztlehwpmisjcykelsd`)
 
-`build/out/load/` dagi fayllar **tartib bilan** (Supabase → SQL Editor):
+Sxema va funksiyalar loyihaga qo‘llangan (platforma repo’si: `20261006133339_juice_reading.sql`, `20261006133938_juice_reading_loader.sql`). Kontentni o‘qituvchining o‘zi yuklaydi — service kalit ham, SQL ham kerak emas:
 
-1. `01_migration_juice_reading.sql` — `juice` sxemasi, `juice-audio` bucket, Kutubxona funksiyalari (platforma repo’sidagi migratsiya bilan bir xil).
-2. `02_units.sql` — 80 ta material (kontent + javob kaliti).
-3. `03_media_01.sql` … `03_media_09.sql` — 216 ta rasm.
-4. `99_check.sql` — natija: `80 | 992 | 216 | 1:20 2:20 3:20 4:20 | 0 | 80`.
+1. **Bir marta:** Supabase → SQL Editor → platforma repo’sidagi `supabase/admin/juice_audio_bucket.sql` (audio uchun yopiq bucket).
+2. Yangi `site/` Netlify’ga joylangan bo‘lsin (platforma README’si).
+3. O‘qituvchi portali → **Kutubxona → Reading Juice → “Materiallar faylini yuklash”** → `build/out/juice-reading-bundle.json` (7 MB). 80 material va 216 rasm partiyalab yuklanadi; qayta yuklash xavfsiz (yangilaydi).
+4. **“Kitobni to‘liq qo‘shish”** → material topshiriqqa tayyor. **“Audiolarni yuklash”** — Telegram’dagi yozuvlar (unit raqami fayl nomidan aniqlanadi).
 
-Hamma fayl qayta ishga tushirilsa ham xavfsiz (upsert). Keyin o‘qituvchi portalida: **Kutubxona → Reading Juice → kitob → “Kitobni to‘liq qo‘shish”** va **“Audiolarni yuklash”** (Telegram’dan yuklab olingan fayllar; unit raqami fayl nomidan aniqlanadi).
+Muqobil yo‘l (SQL Editor): `build/out/load/` dagi fayllar tartib bilan — `01` → `02_units.sql` → `03_media_01…09.sql` → `99_check.sql` (kutilgan natija: `80 | 992 | 216 | 1:20 2:20 3:20 4:20 | 0 | 80`).
 
 Tekshiruv hisoboti: [`docs/REPORT.md`](docs/REPORT.md).

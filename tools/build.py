@@ -4,6 +4,7 @@
     python3 tools/build.py CONTENT_DIR MEDIA_DIR OUT_DIR [--uz content/uz.json]
 
 Writes
+    OUT_DIR/juice-reading-bundle.json   everything in one file, loaded by the teacher in Kutubxona (juice_load RPC)
     OUT_DIR/units/JR1-U01.json …     activity content + answer key per library item (what the platform stores)
     OUT_DIR/sql/10_units_jr{b}.sql    upsert into juice.units (one file per book)
     OUT_DIR/sql/20_media_jr{b}_{k}.sql  upsert into juice.media (book pictures as data URIs, ~1 MB per file)
@@ -248,7 +249,7 @@ def main(content_dir, media_dir, out_dir, uz_path=None):
     os.makedirs(os.path.join(out_dir, 'units'), exist_ok=True)
     os.makedirs(os.path.join(out_dir, 'sql'), exist_ok=True)
     media_ids = {f[:-4] for f in os.listdir(media_dir) if f.endswith('.jpg')}
-    report = []
+    report, bundle = [], {'format': 'juice-reading-bundle', 'version': 1, 'units': [], 'media': []}
     for b in (1, 2, 3, 4):
         path = os.path.join(content_dir, f'book{b}.json')
         if not os.path.exists(path):
@@ -281,14 +282,18 @@ def main(content_dir, media_dir, out_dir, uz_path=None):
                     'insert into juice.media (id, data) values\n' + ',\n'.join(part) + '\non conflict (id) do update set data = excluded.data;\n')
                 k += 1
             part, size = [], 0
+        bundle['units'] += [{k: r[k] for k in ('code', 'book', 'unit', 'kind', 'sort', 'title', 'topic', 'cefr', 'items', 'content', 'answer_key', 'audio_path')} for r in rows]
         for mid in sorted(used):
             data = 'data:image/jpeg;base64,' + base64.b64encode(open(os.path.join(media_dir, mid + '.jpg'), 'rb').read()).decode()
+            bundle['media'].append({'id': mid, 'data': data})
             part.append(f'({q(mid)}, {q(data)})')
             size += len(data)
             if size > 900_000:
                 flush()
         flush()
         print(f'book {b}: {len(rows)} items, {sum(r["items"] for r in rows)} questions, {len(used)} pictures')
+    # one file the teacher loads in Kutubxona → Reading Juice → "Materiallar faylini yuklash"
+    json.dump(bundle, open(os.path.join(out_dir, 'juice-reading-bundle.json'), 'w'), ensure_ascii=False, separators=(',', ':'))
     json.dump({'units': report, 'typos_corrected': FIXED}, open(os.path.join(out_dir, 'report.json'), 'w'), indent=1, ensure_ascii=False)
 
 
