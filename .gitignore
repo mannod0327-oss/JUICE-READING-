@@ -1,0 +1,7 @@
+# Book content is copyrighted: the transcriptions, the page renders, the crops and everything built from them
+# stay out of git (this repository is public). They live in the Supabase project and in the delivered zip.
+content/book*.json
+build/
+node_modules/
+*.zip
+__pycache__/

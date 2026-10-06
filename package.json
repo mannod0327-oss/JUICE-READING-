@@ -1,0 +1,19 @@
+{
+  "name": "juice-reading",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reading Juice for Kids 1–4 (3rd grade): book → platform activities, standalone pages, audit and tests.",
+  "type": "module",
+  "scripts": {
+    "media": "bash tools/media.sh",
+    "build": "python3 -I tools/build.py content build/media build/out --uz content/uz.json",
+    "audit": "python3 -I tools/audit.py build/out build/media",
+    "site": "python3 -I tools/site.py build/out build/media build/site",
+    "test": "node tests/site.e2e.mjs build/site build/out",
+    "all": "npm run build && npm run audit && npm run site && npm test"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  },
+  "engines": { "node": ">=20" }
+}
