@@ -20,6 +20,7 @@ h1{font-size:26px;margin:4px 0 12px}h2{font-size:20px;margin:28px 0 8px}h3{font-
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
 .hero{width:100%;border-radius:14px;display:block;border:1px solid var(--line)}
 .words{list-style:none;padding:0;margin:8px 0;display:flex;flex-wrap:wrap;gap:8px}
+.words-audio{width:100%;margin:4px 0}
 .words li{background:var(--soft);border:1px solid #bfdbfe;border-radius:12px;padding:8px 12px;display:flex;flex-direction:column;line-height:1.25}
 .words b{color:var(--pri-d);font-size:18px}.words span{color:var(--muted);font-size:14px}
 .passage p{margin:0 0 12px;font-size:18px;line-height:1.75}
@@ -73,6 +74,8 @@ JS = r"""
   });
   var au = document.getElementById('track');
   if (au) au.addEventListener('error', function(){ var n = document.getElementById('trackNote'); if (n) n.hidden = false; au.hidden = true; });
+  var wa = document.querySelector('.words-audio');
+  if (wa) wa.addEventListener('error', function(){ wa.hidden = true; });
 })();
 """
 
@@ -100,15 +103,19 @@ def page(r, media_dir, prev_next):
     c, key = r['content'], r['answer_key']['items']
     j = c.get('juice', {})
     parts = [f'<header class="top"><a href="index.html#b{r["book"]}">← Reading Juice {r["book"]}</a><span class="row">{prev_next}</span></header>',
-             f'<div class="kicker">Reading Juice for Kids {r["book"]} · {e(j.get("subject") or "Vocabulary Check")}</div><h1>{e(r["title"].split(" — ")[-1] if " — " in r["title"] else r["title"].split(" · ", 1)[-1])}</h1>']
+             f'<div class="kicker">Reading Juice for Kids {r["book"]} · {e(j.get("subject") or ("Test" if r["kind"] == "test" else "Vocabulary Check"))}</div><h1>{e(r["title"].split(" — ")[-1] if " — " in r["title"] else r["title"].split(" · ", 1)[-1])}</h1>']
     if c.get('image'):
         parts.append(img(media_dir, c['image'], 'hero', r['title']))
     if c.get('audio'):
         f = c['audio'].replace('/', '-') + '.mp3'
         parts.append(f'<div class="card"><b>🎧 Audio — matnni tinglang</b><audio id="track" controls preload="metadata" src="audio/{e(f)}"></audio>'
-                     f'<p class="note" id="trackNote" hidden>Audio fayl topilmadi: <code>audio/{e(f)}</code>. Telegram kanaldagi yozuvni shu nom bilan <code>audio</code> papkasiga qo‘ying.</p></div>')
+                     f'<p class="note" id="trackNote" hidden>Audio fayl topilmadi: <code>audio/{e(f)}</code>. Audio yozuvni shu nom bilan <code>audio</code> papkasiga qo‘ying.</p></div>')
     if c.get('words'):
-        parts.append('<h2>Yangi so‘zlar · Listen and repeat</h2><ul class="words">' + ''.join(
+        wa = ''
+        if c.get('audio_words'):
+            fw = c['audio_words'].replace('/', '-') + '.mp3'
+            wa = f'<audio class="words-audio" controls preload="metadata" src="audio/{e(fw)}" aria-label="So‘zlarni tinglang"></audio>'
+        parts.append('<h2>Yangi so‘zlar · Listen and repeat</h2>' + wa + '<ul class="words">' + ''.join(
             f'<li title="{e(w.get("d", ""))}"><b lang="en">{e(w["w"])}</b><span>{e(w.get("uz", ""))}</span></li>' for w in c['words']) + '</ul>')
     w = c.get('warmup')
     if w:
@@ -126,6 +133,8 @@ def page(r, media_dir, prev_next):
             body.append(f'<h2>{e(q["section"])}</h2>')
         if q.get('task') and (q.get('task') != prev.get('task') or q.get('section') != prev.get('section')):
             body.append(f'<p class="task">{e(q["task"])}</p>')
+        if q.get('text') and (q.get('text') != prev.get('text') or q.get('section') != prev.get('section')):
+            body.append('<div class="card passage">' + ''.join(f'<p>{e(p)}</p>' for p in q['text'].split('\n') if p.strip()) + '</div>')
         if q.get('bank') and (q.get('bank') != prev.get('bank') or q.get('section') != prev.get('section')):
             body.append('<ul class="bank">' + ''.join(f'<li>{e(x)}</li>' for x in q['bank']) + '</ul>')
         prev = q
@@ -156,7 +165,7 @@ def main(out_dir, media_dir, site_dir):
         nav = (f'<a class="btn ghost" href="{name(same[k - 1])}">←</a>' if k else '') + (f'<a class="btn ghost" href="{name(same[k + 1])}">→</a>' if k + 1 < len(same) else '')
         open(os.path.join(site_dir, name(r)), 'w').write(page(r, media_dir, nav))
     idx = ['<header class="top"><div><div class="kicker">3-SINF · INGLIZ TILI</div><h1>Reading Juice for Kids 1–4</h1></div></header>',
-           '<p>Har bir unit: rasm, audio, yangi so‘zlar (o‘zbekcha tarjimasi bilan), matn va avtomatik tekshiriladigan savollar. Har 4 unitdan keyin — Vocabulary Check.</p>',
+           '<p>Har bir unit: rasm, audio, yangi so‘zlar (o‘zbekcha tarjimasi bilan), matn va avtomatik tekshiriladigan savollar. Har 4 unitdan keyin — Vocabulary Check, kitob oxirida — nashriyotning Mid-Term va Final testlari.</p>',
            '<nav class="tabs">' + ''.join(f'<a href="#b{b}">Reading Juice {b}</a>' for b in (1, 2, 3, 4)) + '</nav>']
     for b in (1, 2, 3, 4):
         items = [r for r in rows if r['book'] == b]
@@ -167,7 +176,9 @@ def main(out_dir, media_dir, site_dir):
     open(os.path.join(site_dir, 'index.html'), 'w').write(
         f'<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reading Juice for Kids</title><style>{CSS}</style></head><body><main class="wrap">{"".join(idx)}</main></body></html>')
     open(os.path.join(site_dir, 'audio', 'README.txt'), 'w').write(
-        'Telegram kanaldagi audiolarni shu papkaga quyidagi nomlar bilan qo‘ying:\n  jr1-u01.mp3 … jr1-u16.mp3, jr2-u01.mp3 … jr4-u16.mp3\n(jr<kitob>-u<unit, ikki xonali>.mp3). Sahifa audioni o‘zi topadi.\n')
+        'Audiolarni (Google Drive: ReadingJuiceforKidsSB1_MP3.ZIP … SB4) shu papkaga quyidagi nomlar bilan qo‘ying\n'
+        '(tools/audio_pack.py buni o‘zi qiladi: RJK_<kitob>-<trek>.mp3 → jr<kitob>-u<unit>.mp3 va …w.mp3):\n'
+        '  matn: jr1-u01.mp3 … jr4-u16.mp3; yangi so‘zlar: jr1-u01w.mp3 … jr4-u16w.mp3. Sahifa audioni o‘zi topadi.\n')
     print(f'{len(rows)} pages + index → {site_dir}')
 
 

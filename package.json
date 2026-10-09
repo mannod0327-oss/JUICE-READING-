@@ -6,14 +6,19 @@
   "type": "module",
   "scripts": {
     "media": "bash tools/media.sh",
+    "tests": "python3 -I tools/tests_parse.py ${JR_TESTS_DIR:-build/tests}",
     "build": "python3 -I tools/build.py content build/media build/out --uz content/uz.json",
     "audit": "python3 -I tools/audit.py build/out build/media",
+    "ak": "python3 -I tools/ak_compare.py ${JR_AK_DIR:-build/ak}",
     "site": "python3 -I tools/site.py build/out build/media build/site",
+    "audio": "python3 -I tools/audio_pack.py build/site/audio ${JR_AUDIO_DIR:-build/audio}/*.ZIP",
     "test": "node tests/site.e2e.mjs build/site build/out",
-    "all": "npm run build && npm run audit && npm run site && npm test"
+    "all": "npm run tests && npm run build && npm run audit && npm run ak && npm run site && npm run audio && npm test"
   },
   "devDependencies": {
     "playwright": "1.56.1"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

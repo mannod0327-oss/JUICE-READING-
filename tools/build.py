@@ -14,7 +14,8 @@ Every unit becomes one Reading activity (picture, listening track, key words, Ge
 then Check Comprehension → Build Vocabulary → Organize Information). Every graded item is either a choice
 (the book's options / word bank) or a short typed answer with the accepted forms — all graded by the server.
 Get Ready is shown as an ungraded warm-up: many of its answers are opinions or prior knowledge.
-Every 4 units the Vocabulary Check becomes its own test.
+Every 4 units the Vocabulary Check becomes its own test; content/tests{N}.json (tools/tests_parse.py)
+adds the publisher's Mid-Term and Final tests (JR{N}-MID, JR{N}-FIN).
 """
 import base64, difflib, json, os, re, sys
 
@@ -72,7 +73,7 @@ class Unit:
     def __init__(self, code):
         self.code, self.questions, self.key = code, [], {}
 
-    def choice(self, qid, section, task, stem, options, answer, bank=None, img=None):
+    def choice(self, qid, section, task, stem, options, answer, bank=None, img=None, text=None):
         if not (0 <= answer < len(options)):
             raise ValueError(f'{self.code} {qid}: answer {answer} out of range')
         if len(set(o.strip().lower() for o in options)) != len(options):
@@ -82,14 +83,19 @@ class Unit:
             q['bank'] = bank
         if img:
             q['img'] = img
+        if text:
+            q['text'] = text
         self.questions.append(q)
         self.key[qid] = {'a': answer}
 
-    def text(self, qid, section, task, stem, accepted):
+    def text(self, qid, section, task, stem, accepted, text=None):
         acc = [a for a in dict.fromkeys(a.strip() for a in accepted) if a]
         if not acc:
             raise ValueError(f'{self.code} {qid}: no accepted answer')
-        self.questions.append({'id': qid, 'section': section, 'task': task, 'q': stem, 'type': 'text'})
+        q = {'id': qid, 'section': section, 'task': task, 'q': stem, 'type': 'text'}
+        if text:
+            q['text'] = text
+        self.questions.append(q)
         self.key[qid] = {'t': acc}
 
 
@@ -177,7 +183,8 @@ def build_unit(b, u, uz, media_ids):
         'runner': 'reading_quiz', 'level': f'Reading Juice {b}', 'source': code, 'library': True,
         'juice': {'book': b, 'unit': n, 'subject': u.get('subject', '')},
         'image': f'{base}-hero' if f'{base}-hero' in media_ids else None,
-        'audio': f'jr{b}/u{n:02d}',
+        'audio': f'jr{b}/u{n:02d}',          # the passage (publisher CD track 2n+1)
+        'audio_words': f'jr{b}/u{n:02d}w',   # Get Ready words, listen and repeat (track 2n)
         'words': words, 'warmup': warmup(u['get_ready']),
         'passage': '\n\n'.join(p.strip() for p in u['passage']),
         'questions': U.questions,
@@ -236,6 +243,29 @@ def build_check(b, vc, media_ids):
     }
 
 
+def build_test(b, t):
+    """The publisher's Mid-Term / Final test (content/tests{b}.json, from tools/tests_parse.py)."""
+    mid = t['kind'] == 'mid'
+    code = f'JR{b}-{"MID" if mid else "FIN"}'
+    U = Unit(code)
+    for g in t['groups']:
+        section = f'Questions {g["from"]}–{g["to"]}'
+        for it in g['questions']:
+            qid = f'q{it["n"]}'
+            if it['options']:
+                U.choice(qid, section, g['task'], it['q'], list(it['options']), int(it['answer']), text=g['text'] or None)
+            else:
+                U.text(qid, section, g['task'], it['q'], it['answers'], text=g['text'] or None)
+    name = 'Mid-Term Test' if mid else 'Final Test'
+    return {
+        'code': code, 'book': b, 'unit': None, 'kind': 'test', 'sort': 21 if mid else 22,
+        'title': f'Reading Juice {b} · {name}', 'topic': f'Reading Juice {b}', 'cefr': CEFR[b],
+        'items': len(U.questions), 'answer_key': {'items': U.key}, 'audio_path': None,
+        'content': {'runner': 'quiz', 'level': f'Reading Juice {b}', 'source': code, 'library': True,
+                    'juice': {'book': b, 'test': t['kind']}, 'questions': U.questions},
+    }
+
+
 def q(s):
     return "'" + str(s).replace("'", "''") + "'"
 
@@ -257,6 +287,9 @@ def main(content_dir, media_dir, out_dir, uz_path=None):
             continue
         book = fix(json.load(open(path)), f'JR{b}')
         rows = [build_unit(b, u, uz, media_ids) for u in book['units']] + [build_check(b, vc, media_ids) for vc in book.get('vocab_checks', [])]
+        tpath = os.path.join(content_dir, f'tests{b}.json')
+        if os.path.exists(tpath):
+            rows += [build_test(b, t) for t in json.load(open(tpath))['tests']]
         rows.sort(key=lambda r: r['sort'])
         used = set()
         for r in rows:

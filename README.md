@@ -29,14 +29,19 @@ PDF (4 ta, skan)  ──pdftoppm──▶ build/pages/       ──tools/extract
 ```bash
 npm install                                   # playwright (testlar uchun)
 JR_PDF_DIR=~/Downloads npm run media          # sahifalarni rasmga aylantirish + rasmlarni kesish
-npm run all                                   # build → audit → standalone sahifalar → brauzer testi
+npm run all                                   # testlar → build → audit → AK solishtirish → sahifalar → audio → brauzer testi
 ```
 
 - `content/SCHEMA.md` — kitob JSON formati.
 - `tools/build.py` — unitni platforma faoliyatiga aylantiradi: savollar, javob kaliti, rasm/audio havolalari; kitobdagi matbaa xatolarini tuzatadi (ro‘yxati `build/out/report.json` da).
 - `tools/audit.py` — har savolning kaliti bor, indeks chegarada, takror variant yo‘q, yozma javob matnda bor, rasmlar mavjud, kalit bilan javob berilsa **100%**, bo‘sh qog‘oz **0%** (platforma serveri bilan bir xil qoida).
 - `tools/site.py` — mustaqil sahifalar: har biri bitta HTML (rasmlar ichida), javobni brauzerda tekshiradi; audio `audio/jr1-u01.mp3` kabi nom bilan yonida tursa o‘ynaydi.
-- `tests/site.e2e.mjs` — 81 sahifa haqiqiy Chromium’da, 390 px telefon kengligida.
+- `tools/tests_parse.py` — nashriyotning Mid-Term/Final testlari (.doc → `soffice --convert-to txt`, `build/tests/t1…t4.txt`) → `content/tests{1..4}.json`; har savolning javobi variantlar ichida ekanini tekshiradi.
+- `tools/ak_compare.py` — javoblarni rasmiy Answer Key PDF bilan solishtiradi (`build/ak/ak1…ak4.pdf`); ataylab farqlar `KNOWN` ro‘yxatida, boshqa har farq — xato (exit 1).
+- `tools/audio_pack.py` — nashriyot MP3 zip’lari (`build/audio/*.ZIP`) → `build/site/audio/jr1-u01.mp3` (matn) va `jr1-u01w.mp3` (so‘zlar). CD’da 01 — kirish, juft trek — so‘zlar, toq — matn.
+- `tests/site.e2e.mjs` — 89 sahifa haqiqiy Chromium’da, 390 px telefon kengligida; audio paketi bo‘lsa, 128 pleer ochilishini ham tekshiradi.
+
+Kitob, test va AK fayllari, audio repo’ga kirmaydi (`.gitignore`): mualliflik huquqi.
 
 ## Platformaga yuklash (Supabase `oiztlehwpmisjcykelsd`)
 
@@ -44,9 +49,9 @@ Sxema va funksiyalar loyihaga qo‘llangan (platforma repo’si: `20261006133339
 
 1. **Bir marta:** Supabase → SQL Editor → platforma repo’sidagi `supabase/admin/juice_audio_bucket.sql` (audio uchun yopiq bucket).
 2. Yangi `site/` Netlify’ga joylangan bo‘lsin (platforma README’si).
-3. O‘qituvchi portali → **Kutubxona → Reading Juice → “Materiallar faylini yuklash”** → `build/out/juice-reading-bundle.json` (7 MB). 80 material va 216 rasm partiyalab yuklanadi; qayta yuklash xavfsiz (yangilaydi).
-4. **“Kitobni to‘liq qo‘shish”** → material topshiriqqa tayyor. **“Audiolarni yuklash”** — Telegram’dagi yozuvlar (unit raqami fayl nomidan aniqlanadi).
+3. O‘qituvchi portali → **Kutubxona → Reading Juice → “Materiallar faylini yuklash”** → `build/out/juice-reading-bundle.json` (7 MB). 88 material (64 unit, 16 Vocabulary Check, 8 rasmiy test) va rasmlar partiyalab yuklanadi; qayta yuklash xavfsiz (yangilaydi).
+4. **“Kitobni to‘liq qo‘shish”** → material topshiriqqa tayyor. **“Audiolarni yuklash (zip yoki mp3)”** — nashriyotning 5 ta MP3 zip’ini birdan tanlang; kitob, unit va qism (matn/so‘zlar) fayl nomidan aniqlanadi.
 
-Muqobil yo‘l (SQL Editor): `build/out/load/` dagi fayllar tartib bilan — `01` → `02_units.sql` → `03_media_01…09.sql` → `99_check.sql` (kutilgan natija: `80 | 992 | 216 | 1:20 2:20 3:20 4:20 | 0 | 80`).
+Muqobil yo‘l (SQL Editor): `build/out/sql/` dagi fayllar tartib bilan — `10_units_jr1…4.sql` → `20_media_*.sql` (platformaning `20261006192805_juice_reading_tests.sql` migratsiyasidan keyin).
 
 Tekshiruv hisoboti: [`docs/REPORT.md`](docs/REPORT.md).
